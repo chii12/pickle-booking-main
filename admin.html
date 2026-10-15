@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f5ef">
+  <meta name="description" content="PickleRally booking management dashboard.">
+  <title>Booking admin — PickleRally</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="admin.css">
+  <script src="supabase-config.js"></script>
+  <script src="supabase.js" defer></script>
+  <script src="admin.js" defer></script>
+</head>
+<body class="admin-page">
+  <a class="skip-link" href="#admin-main">Skip to content</a>
+  <header class="admin-header">
+    <a class="brand" href="index.html" aria-label="PickleRally home">
+      <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M13 5a9 9 0 0 1 9 9v8a9 9 0 1 1-18 0v-8a9 9 0 0 1 9-9Z"/><path d="m16 29 7 7M27 8h1m5 5h1m-7 5h1m6 4h1m-7 5h1"/></svg></span>
+      <span>pickle<span class="brand-light">rally</span></span>
+    </a>
+    <div class="admin-header-actions">
+      <span class="admin-label"><span class="admin-live-dot"></span> STAFF DASHBOARD</span>
+      <div class="admin-header-buttons">
+        <button class="button button-dark admin-site-link" id="admin-sign-out" type="button" hidden>Sign out</button>
+        <a class="button button-dark admin-site-link" href="index.html">View website <span aria-hidden="true">↗</span></a>
+      </div>
+    </div>
+  </header>
+
+  <main class="admin-login" id="admin-login">
+    <section class="admin-login-card" aria-labelledby="admin-login-title">
+      <p class="eyebrow">STAFF ACCESS</p>
+      <h1 id="admin-login-title">Welcome <span>back.</span></h1>
+      <p class="admin-login-description">Sign in with your staff account to manage court requests.</p>
+      <p class="admin-login-feedback" id="admin-login-feedback" role="alert" aria-live="assertive"></p>
+      <form id="admin-login-form">
+        <label for="admin-email">Staff email</label>
+        <input id="admin-email" type="email" autocomplete="username" required>
+        <label for="admin-password">Password</label>
+        <input id="admin-password" type="password" autocomplete="current-password" required>
+        <button class="button button-lime" type="submit">Sign in <span aria-hidden="true">↗</span></button>
+      </form>
+      <p class="admin-login-help">Staff accounts must be created in your Supabase project. Public sign-ups should remain disabled.</p>
+    </section>
+  </main>
+
+  <main class="admin-main" id="admin-main" hidden>
+    <section class="admin-intro">
+      <div>
+        <p class="eyebrow">YOUR CLUB, AT A GLANCE</p>
+        <h1>Booking <span>desk.</span></h1>
+        <p>Review court requests, confirm a time, and keep your day moving.</p>
+      </div>
+      <button class="button button-lime" id="export-bookings" type="button">Export bookings <span aria-hidden="true">↓</span></button>
+    </section>
+
+    <section class="admin-stats" aria-label="Booking summary">
+      <article class="admin-stat"><span>TOTAL REQUESTS</span><strong id="stat-total">0</strong><small>All shared booking requests</small></article>
+      <article class="admin-stat"><span>NEED A REPLY</span><strong id="stat-pending">0</strong><small>Pending confirmation</small></article>
+      <article class="admin-stat"><span>CONFIRMED</span><strong id="stat-confirmed">0</strong><small>Ready for the court</small></article>
+      <article class="admin-stat"><span>TODAY'S BOOKINGS</span><strong id="stat-today">0</strong><small>Requests for today</small></article>
+    </section>
+
+    <section class="admin-bookings" aria-labelledby="bookings-title">
+      <div class="admin-list-heading">
+        <div><p class="eyebrow">THE COURT ROSTER</p><h2 id="bookings-title">Booking requests</h2></div>
+        <label class="admin-search"><span class="visually-hidden">Search bookings</span><input id="booking-search" type="search" placeholder="Search name, phone, court…"></label>
+      </div>
+      <div class="admin-toolbar">
+        <div class="admin-filters" role="group" aria-label="Filter bookings">
+          <button class="admin-filter is-active" type="button" data-filter="all" aria-pressed="true">All <span id="count-all">0</span></button>
+          <button class="admin-filter" type="button" data-filter="pending" aria-pressed="false">Pending <span id="count-pending">0</span></button>
+          <button class="admin-filter" type="button" data-filter="confirmed" aria-pressed="false">Confirmed <span id="count-confirmed">0</span></button>
+          <button class="admin-filter" type="button" data-filter="cancelled" aria-pressed="false">Cancelled <span id="count-cancelled">0</span></button>
+        </div>
+        <div class="admin-refresh-controls">
+          <span class="admin-sync-status" id="admin-sync-status" role="status">Waiting for staff sign-in</span>
+          <button class="admin-refresh" id="refresh-bookings" type="button">Refresh now <span aria-hidden="true">↻</span></button>
+        </div>
+      </div>
+      <p class="admin-feedback" id="admin-feedback" role="status" aria-live="polite"></p>
+      <div class="booking-table-wrap">
+        <table class="booking-table">
+          <thead><tr><th scope="col">PLAYER</th><th scope="col">COURT &amp; SLOT</th><th scope="col">PLAYERS</th><th scope="col">EST. TOTAL</th><th scope="col">STATUS</th><th scope="col"><span class="visually-hidden">Actions</span></th></tr></thead>
+          <tbody id="booking-list"></tbody>
+        </table>
+        <div class="admin-empty" id="booking-empty" hidden>
+          <span aria-hidden="true">✳</span>
+          <h3 id="booking-empty-title">No booking requests yet.</h3>
+          <p id="booking-empty-message">Requests submitted from the website will appear here in this browser.</p>
+          <a class="button button-dark" href="index.html#book">Open booking form <span aria-hidden="true">↗</span></a>
+        </div>
+      </div>
+    </section>
+    <p class="admin-notice"><strong>Staff access:</strong> booking requests are stored in the shared Supabase database. Only signed-in staff can view, update, or delete them.</p>
+  </main>
+</body>
+</html>
