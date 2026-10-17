@@ -124,6 +124,17 @@
       body: booking,
       headers: { Prefer: "return=minimal" },
     }),
+    createAdminBooking: async (booking) => {
+      const result = await authenticatedRequest("/rest/v1/bookings?select=*", {
+        method: "POST",
+        body: booking,
+        headers: { Prefer: "return=representation" },
+      });
+      if (!Array.isArray(result) || result.length !== 1) {
+        throw new Error("The booking was not created. Please refresh and try again.");
+      }
+      return result[0];
+    },
     signIn: async (email, password) => {
       const session = await request("/auth/v1/token?grant_type=password", {
         method: "POST",

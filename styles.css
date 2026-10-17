@@ -468,3 +468,23 @@ body { font-size: 16px; }
   .availability-detail-slot { gap: 6px; font-size: 11px; }
   .availability-detail-slot .calendar-status { padding: 5px 6px; font-size: 9px; }
 }
+
+@media (hover: hover) and (pointer: fine) {
+  body:not(.admin-page) {
+    cursor: url("assets/pickleball-cursor.svg") 16 16, auto;
+  }
+
+  body:not(.admin-page) a,
+  body:not(.admin-page) button:not(:disabled),
+  body:not(.admin-page) select,
+  body:not(.admin-page) [role="button"],
+  body:not(.admin-page) input[type="checkbox"],
+  body:not(.admin-page) input[type="radio"] {
+    cursor: url("assets/pickleball-cursor.svg") 16 16, pointer;
+  }
+
+  body:not(.admin-page) input,
+  body:not(.admin-page) textarea {
+    cursor: text;
+  }
+}

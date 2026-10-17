@@ -24,6 +24,8 @@ alter table public.bookings enable row level security;
 revoke all on table public.bookings from public, anon, authenticated;
 grant insert (name, phone, court, players, duration, date, time, estimated_total, promo, notes)
   on table public.bookings to anon;
+grant insert (name, phone, court, players, duration, date, time, estimated_total, promo, notes, status)
+  on table public.bookings to authenticated;
 grant select, update, delete on table public.bookings to authenticated;
 
 drop policy if exists "Visitors can submit pending booking requests" on public.bookings;
@@ -32,6 +34,13 @@ create policy "Visitors can submit pending booking requests"
   for insert
   to anon
   with check (status = 'pending');
+
+drop policy if exists "Signed-in staff can create bookings" on public.bookings;
+create policy "Signed-in staff can create bookings"
+  on public.bookings
+  for insert
+  to authenticated
+  with check (status in ('pending', 'confirmed'));
 
 drop policy if exists "Signed-in staff can view booking requests" on public.bookings;
 create policy "Signed-in staff can view booking requests"

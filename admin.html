@@ -55,7 +55,10 @@
         <h1>Booking <span>desk.</span></h1>
         <p>Review court requests, confirm a time, and keep your day moving.</p>
       </div>
-      <button class="button button-lime" id="export-bookings" type="button">Export bookings <span aria-hidden="true">↓</span></button>
+      <div class="admin-intro-actions">
+        <button class="button button-outline-light" id="open-admin-booking" type="button">New booking <span aria-hidden="true">＋</span></button>
+        <button class="button button-lime" id="export-bookings" type="button">Export bookings <span aria-hidden="true">↓</span></button>
+      </div>
     </section>
 
     <section class="admin-stats" aria-label="Booking summary">
@@ -68,7 +71,21 @@
     <section class="admin-bookings" aria-labelledby="bookings-title">
       <div class="admin-list-heading">
         <div><p class="eyebrow">THE COURT ROSTER</p><h2 id="bookings-title">Booking requests</h2></div>
-        <label class="admin-search"><span class="visually-hidden">Search bookings</span><input id="booking-search" type="search" placeholder="Search name, phone, court…"></label>
+        <div class="admin-list-tools">
+          <label class="admin-search"><span class="visually-hidden">Search bookings</span><input id="booking-search" type="search" placeholder="Search name, phone, court…"></label>
+          <div class="admin-filter-controls" aria-label="Filter by booking date and court">
+            <label class="admin-filter-field" for="booking-date-filter">
+              <span>Booking date</span>
+              <input id="booking-date-filter" type="date">
+            </label>
+            <label class="admin-filter-field" for="booking-court-filter">
+              <span>Court</span>
+              <select id="booking-court-filter">
+                <option value="">All courts</option>
+              </select>
+            </label>
+          </div>
+        </div>
       </div>
       <div class="admin-toolbar">
         <div class="admin-filters" role="group" aria-label="Filter bookings">
@@ -91,12 +108,75 @@
         <div class="admin-empty" id="booking-empty" hidden>
           <span aria-hidden="true">✳</span>
           <h3 id="booking-empty-title">No booking requests yet.</h3>
-          <p id="booking-empty-message">Requests submitted from the website will appear here in this browser.</p>
-          <a class="button button-dark" href="index.html#book">Open booking form <span aria-hidden="true">↗</span></a>
+          <p id="booking-empty-message">Booking requests will appear here, or create one from the staff dashboard.</p>
         </div>
       </div>
+      <nav class="admin-pagination" id="booking-pagination" aria-label="Booking request pages" hidden>
+        <span class="admin-pagination-summary" id="booking-pagination-summary" role="status"></span>
+        <div class="admin-pagination-controls">
+          <button class="admin-page-button" id="booking-previous-page" type="button">← Previous</button>
+          <span class="admin-page-number" id="booking-page-number" aria-live="polite"></span>
+          <button class="admin-page-button" id="booking-next-page" type="button">Next →</button>
+        </div>
+      </nav>
     </section>
     <p class="admin-notice"><strong>Staff access:</strong> booking requests are stored in the shared Supabase database. Only signed-in staff can view, update, or delete them.</p>
   </main>
+
+  <dialog class="admin-booking-dialog" id="admin-booking-dialog" aria-labelledby="admin-booking-title">
+    <form class="admin-booking-form" id="admin-booking-form">
+      <div class="admin-booking-heading">
+        <div><p class="eyebrow">STAFF BOOKING</p><h2 id="admin-booking-title">Create a booking</h2></div>
+        <button class="admin-dialog-close" id="admin-booking-close" type="button" aria-label="Close booking form">×</button>
+      </div>
+      <p class="admin-booking-feedback" id="admin-booking-feedback" role="status" aria-live="polite"></p>
+      <div class="admin-booking-fields">
+        <label for="admin-booking-name">Player name<input id="admin-booking-name" name="name" type="text" maxlength="120" autocomplete="name" required></label>
+        <label for="admin-booking-phone">Phone number<input id="admin-booking-phone" name="phone" type="tel" maxlength="40" autocomplete="tel" required></label>
+        <label for="admin-booking-court">Court
+          <select id="admin-booking-court" name="court" required>
+            <option value="">Choose a court</option>
+            <option value="The Ace Court — ₱400/hour" data-rate="400">The Ace Court — ₱400/hour</option>
+            <option value="The Prime Court — ₱500/hour" data-rate="500">The Prime Court — ₱500/hour</option>
+            <option value="The Rally Court — ₱400/hour" data-rate="400">The Rally Court — ₱400/hour</option>
+            <option value="The Social Court — ₱450/hour" data-rate="450">The Social Court — ₱450/hour</option>
+          </select>
+        </label>
+        <label for="admin-booking-players">Players
+          <select id="admin-booking-players" name="players" required>
+            <option value="">Choose players</option>
+            <option value="2 players">2 players</option>
+            <option value="3 players">3 players</option>
+            <option value="4 players">4 players</option>
+          </select>
+        </label>
+        <label for="admin-booking-duration">Duration
+          <select id="admin-booking-duration" name="duration" required>
+            <option value="">Choose duration</option>
+            <option value="1">1 hour</option>
+            <option value="2">2 hours</option>
+            <option value="3">3 hours</option>
+          </select>
+        </label>
+        <label for="admin-booking-date">Date<input id="admin-booking-date" name="date" type="date" required></label>
+        <label for="admin-booking-time">Time
+          <select id="admin-booking-time" name="time" required disabled>
+            <option value="">Choose a duration first</option>
+          </select>
+        </label>
+        <label for="admin-booking-status">Status
+          <select id="admin-booking-status" name="status" required>
+            <option value="confirmed" selected>Confirmed</option>
+            <option value="pending">Pending</option>
+          </select>
+        </label>
+        <label class="admin-booking-notes" for="admin-booking-notes">Notes<textarea id="admin-booking-notes" name="notes" maxlength="1000" rows="3"></textarea></label>
+      </div>
+      <div class="admin-booking-footer">
+        <p>Estimated total <strong id="admin-booking-total">Choose a court &amp; duration</strong></p>
+        <button class="button button-lime" id="admin-booking-submit" type="submit">Save booking <span aria-hidden="true">↗</span></button>
+      </div>
+    </form>
+  </dialog>
 </body>
 </html>
