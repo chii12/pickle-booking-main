@@ -21,6 +21,7 @@ const loyaltyAdd = document.querySelector("#loyalty-add");
 const backToTop = document.querySelector("#back-to-top");
 const scheduleGrid = document.querySelector("#schedule-grid");
 const scheduleRange = document.querySelector("#schedule-range");
+const calendarMessage = document.querySelector("#calendar-message");
 
 document.querySelector("#year").textContent = new Date().getFullYear();
 
@@ -48,11 +49,6 @@ backToTop.addEventListener("click", () => {
 });
 
 const today = new Date();
-const timeSlots = [
-  { full: "7:00 AM–10:00 AM", short: "7–10 AM" },
-  { full: "10:00 AM–4:00 PM", short: "10 AM–4 PM" },
-  { full: "4:00 PM–10:00 PM", short: "4–10 PM" },
-];
 const dateFormatter = new Intl.DateTimeFormat("en", { month: "short", day: "numeric" });
 const weekdayFormatter = new Intl.DateTimeFormat("en", { weekday: "short" });
 const monthFormatter = new Intl.DateTimeFormat("en", { month: "short" });
@@ -63,13 +59,15 @@ const availabilityDialog = document.querySelector("#availability-dialog");
 const availabilityDialogTitle = document.querySelector("#availability-dialog-title");
 const availabilityDetailSlots = document.querySelector("#availability-detail-slots");
 const availabilityDialogClose = document.querySelector("#availability-dialog-close");
-const availabilityFor = (date, slotIndex) => {
-  const weekday = date.getDay();
-  if (slotIndex === 0 && (weekday === 3 || weekday === 6)) return ["OPEN PLAY", "slot-clinic"];
-  if (slotIndex === 1 && weekday === 2) return ["MAINTENANCE", "slot-maintenance"];
-  if (slotIndex === 2 && (weekday === 4 || weekday === 0)) return ["OPEN PLAY", "slot-clinic"];
-  return ["OPEN", "slot-open"];
-};
+const calendarBookingsByDate = new Map();
+const calendarCourts = [
+  "The Ace Court — ₱400/hour",
+  "The Prime Court — ₱500/hour",
+  "The Rally Court — ₱400/hour",
+  "The Social Court — ₱450/hour",
+];
+let calendarLoadId = 0;
+let calendarLoaded = false;
 
 const weekdays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
 let displayedMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -87,25 +85,92 @@ const showAvailability = (date, selectedButton) => {
   }).format(date);
   availabilityDetailSlots.replaceChildren();
 
-  timeSlots.forEach((timeSlot, slotIndex) => {
-    const [statusText, statusClass] = availabilityFor(date, slotIndex);
-    const row = document.createElement("li");
-    row.className = "availability-detail-slot";
-    const time = document.createElement("span");
-    time.textContent = timeSlot.full;
-    const status = document.createElement("span");
-    status.className = `calendar-status ${statusClass}`;
-    const dot = document.createElement("span");
-    dot.className = "calendar-status-dot";
-    dot.setAttribute("aria-hidden", "true");
-    const label = document.createElement("span");
-    label.textContent = statusText;
-    status.append(dot, label);
-    row.append(time, status);
-    availabilityDetailSlots.append(row);
+  if (!calendarLoaded) {
+    calendarMessage.textContent = "Booking details are still loading. Please select the date again in a moment.";
+    calendarMessage.classList.add("is-error");
+    return;
+  }
+
+  const bookings = calendarBookingsByDate.get(formatDateValue(date)) || [];
+  const header = document.createElement("div");
+  header.className = "availability-hour-row availability-hour-header";
+  header.setAttribute("role", "row");
+  ["TIME", ...calendarCourts.map((court) => court.replace(/\s+—\s+₱[\d,]+\/hour$/, ""))].forEach((label) => {
+    const cell = document.createElement("span");
+    cell.className = "availability-hour-cell";
+    cell.setAttribute("role", "columnheader");
+    cell.textContent = label;
+    header.append(cell);
   });
+  availabilityDetailSlots.append(header);
+
+  for (let hour = 0; hour < 24; hour += 1) {
+    const row = document.createElement("div");
+    row.className = "availability-hour-row";
+    row.setAttribute("role", "row");
+    const timeCell = document.createElement("span");
+    timeCell.className = "availability-hour-cell availability-hour-time";
+    timeCell.setAttribute("role", "rowheader");
+    timeCell.textContent = `${formatCalendarHour(hour)} – ${formatCalendarHour(hour + 1)}`;
+    row.append(timeCell);
+
+    calendarCourts.forEach((courtName) => {
+      const cell = document.createElement("span");
+      cell.className = "availability-hour-cell";
+      cell.setAttribute("role", "cell");
+      const status = getCourtHourStatus(date, hour, courtName, bookings);
+      const badge = document.createElement("span");
+      badge.className = `availability-hour-status slot-${status.toLowerCase().replace(" ", "-")}`;
+      badge.textContent = status;
+      cell.setAttribute("aria-label", `${courtName.replace(/\s+—\s+₱[\d,]+\/hour$/, "")}, ${timeCell.textContent}: ${status}`);
+      cell.append(badge);
+      row.append(cell);
+    });
+    availabilityDetailSlots.append(row);
+  }
 
   if (!availabilityDialog.open) availabilityDialog.showModal();
+};
+
+const formatDateValue = (date) => [
+  date.getFullYear(),
+  String(date.getMonth() + 1).padStart(2, "0"),
+  String(date.getDate()).padStart(2, "0"),
+].join("-");
+
+const timeToMinutes = (match) => {
+  const hour = Number(match[1]) % 12 + (match[3].toUpperCase() === "PM" ? 12 : 0);
+  return hour * 60 + Number(match[2]);
+};
+
+const bookingTimeRange = (time) => {
+  const matches = [...String(time).matchAll(/(\d{1,2}):(\d{2})\s*(AM|PM)/gi)];
+  if (matches.length < 2) return null;
+  const start = timeToMinutes(matches[0]);
+  const end = timeToMinutes(matches[1]);
+  return end > start ? [start, end] : null;
+};
+
+const formatCalendarHour = (hour) => {
+  const normalizedHour = hour % 24;
+  return `${normalizedHour % 12 || 12}:00 ${normalizedHour < 12 ? "AM" : "PM"}`;
+};
+
+const getCourtHourStatus = (date, hour, court, bookings) => {
+  const hourStart = hour * 60;
+  const hourEnd = hourStart + 60;
+  const hasConfirmedBooking = bookings.some((booking) => {
+    if (booking.court !== court) return false;
+    const range = bookingTimeRange(booking.time);
+    return range && hourStart < range[1] && range[0] < hourEnd;
+  });
+  if (hasConfirmedBooking) return "BOOKED";
+
+  const weekday = date.getDay();
+  if (hour >= 7 && hour < 10 && (weekday === 3 || weekday === 6)) return "OPEN PLAY";
+  if (hour >= 10 && hour < 16 && weekday === 2) return "MAINTENANCE";
+  if (hour >= 16 && hour < 22 && (weekday === 4 || weekday === 0)) return "OPEN PLAY";
+  return "OPEN";
 };
 
 const renderCalendar = () => {
@@ -142,10 +207,8 @@ const renderCalendar = () => {
     dayCard.className = "calendar-day";
     dayCard.dataset.weekday = String(date.getDay());
     dayCard.setAttribute("role", "gridcell");
-    dayCard.setAttribute("aria-label", `${weekdayFormatter.format(date)} ${dateFormatter.format(date)}`);
     if (date.toDateString() === today.toDateString()) {
       dayCard.classList.add("today");
-      dayCard.setAttribute("aria-label", `Today, ${weekdayFormatter.format(date)} ${dateFormatter.format(date)}`);
     }
 
     const dateHeading = document.createElement("div");
@@ -157,7 +220,7 @@ const renderCalendar = () => {
     const dateButton = document.createElement("button");
     dateButton.className = "calendar-date-button";
     dateButton.type = "button";
-    dateButton.setAttribute("aria-label", `Show availability for ${weekdayFormatter.format(date)} ${dateFormatter.format(date)}`);
+    dateButton.setAttribute("aria-label", `Show hourly court status for ${weekdayFormatter.format(date)} ${dateFormatter.format(date)}`);
     dateButton.setAttribute("aria-pressed", "false");
     dateButton.addEventListener("click", () => showAvailability(date, dateButton));
     dateNumber.className = "calendar-date";
@@ -166,31 +229,17 @@ const renderCalendar = () => {
     dateHeading.append(weekdayName, dateButton);
     dayCard.append(dateHeading);
 
-    const slots = document.createElement("ul");
-    slots.className = "calendar-slots";
-    slots.setAttribute("aria-label", "Daily time slots");
-    timeSlots.forEach((timeSlot, slotIndex) => {
-      const [statusText, statusClass] = availabilityFor(date, slotIndex);
-      const statusItem = document.createElement("li");
-      statusItem.className = "calendar-slot";
-      const timeLabel = document.createElement("span");
-      timeLabel.className = "calendar-slot-time";
-      timeLabel.textContent = timeSlot.short;
-      const status = document.createElement("span");
-      status.className = `calendar-status ${statusClass}`;
-      status.setAttribute("aria-label", `${timeSlot.full}: ${statusText}`);
-      status.title = `${timeSlot.full}: ${statusText}`;
-      const statusDot = document.createElement("span");
-      statusDot.className = "calendar-status-dot";
-      statusDot.setAttribute("aria-hidden", "true");
-      const statusLabel = document.createElement("span");
-      statusLabel.className = "calendar-status-label";
-      statusLabel.textContent = statusText;
-      status.append(statusDot, statusLabel);
-      statusItem.append(timeLabel, status);
-      slots.append(statusItem);
-    });
-    dayCard.append(slots);
+    const bookingCount = calendarBookingsByDate.get(formatDateValue(date))?.length || 0;
+    const bookingBadge = document.createElement("span");
+    bookingBadge.className = `calendar-booking-count${bookingCount ? " has-bookings" : ""}`;
+    bookingBadge.textContent = calendarLoaded && bookingCount ? `${bookingCount} booked` : "";
+    const dateLabel = `${weekdayFormatter.format(date)} ${dateFormatter.format(date)}`;
+    const todayLabel = date.toDateString() === today.toDateString() ? "Today, " : "";
+    const bookingLabel = calendarLoaded && bookingCount
+      ? `, ${bookingCount} confirmed ${bookingCount === 1 ? "booking" : "bookings"}`
+      : "";
+    dayCard.setAttribute("aria-label", `${todayLabel}${dateLabel}${bookingLabel}`);
+    dayCard.append(bookingBadge);
     scheduleGrid.append(dayCard);
   }
 
@@ -205,13 +254,55 @@ const renderCalendar = () => {
     && displayedMonth.getMonth() === today.getMonth();
 };
 
+const loadCalendarBookings = async () => {
+  const loadId = ++calendarLoadId;
+  const monthStart = formatDateValue(displayedMonth);
+  const nextMonth = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() + 1, 1);
+  const monthEnd = formatDateValue(nextMonth);
+  calendarLoaded = false;
+  calendarBookingsByDate.clear();
+  calendarMessage.textContent = "Loading confirmed bookings…";
+  calendarMessage.classList.remove("is-error");
+  renderCalendar();
+  try {
+    const bookings = await window.PickleRallyDB.listPublicBookings(monthStart, monthEnd);
+    if (loadId !== calendarLoadId) return;
+    if (!Array.isArray(bookings)) throw new Error("The calendar returned an invalid booking list.");
+    bookings.forEach((booking) => {
+      if (typeof booking.date !== "string" || typeof booking.court !== "string" || typeof booking.time !== "string") {
+        throw new Error("The calendar returned a booking with missing schedule details.");
+      }
+      const dayBookings = calendarBookingsByDate.get(booking.date) || [];
+      dayBookings.push(booking);
+      calendarBookingsByDate.set(booking.date, dayBookings);
+    });
+    calendarBookingsByDate.forEach((dayBookings) => {
+      dayBookings.sort((first, second) => {
+        const firstStart = bookingTimeRange(first.time)?.[0] ?? Number.POSITIVE_INFINITY;
+        const secondStart = bookingTimeRange(second.time)?.[0] ?? Number.POSITIVE_INFINITY;
+        return firstStart - secondStart;
+      });
+    });
+    calendarLoaded = true;
+    calendarMessage.textContent = "Select a date to see each court's hourly status.";
+    renderCalendar();
+  } catch (error) {
+    if (loadId !== calendarLoadId) return;
+    calendarBookingsByDate.clear();
+    calendarMessage.textContent = `Could not load confirmed bookings. ${error.message}`;
+    calendarMessage.classList.add("is-error");
+    console.error("Unable to load public calendar bookings:", error);
+    renderCalendar();
+  }
+};
+
 previousMonth.addEventListener("click", () => {
   displayedMonth = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() - 1, 1);
-  renderCalendar();
+  loadCalendarBookings();
 });
 nextMonth.addEventListener("click", () => {
   displayedMonth = new Date(displayedMonth.getFullYear(), displayedMonth.getMonth() + 1, 1);
-  renderCalendar();
+  loadCalendarBookings();
 });
 availabilityDialogClose.addEventListener("click", () => availabilityDialog.close());
 availabilityDialog.addEventListener("click", (event) => {
@@ -220,7 +311,13 @@ availabilityDialog.addEventListener("click", (event) => {
 availabilityDialog.addEventListener("keydown", (event) => {
   if (event.key === "Escape") availabilityDialog.close();
 });
-renderCalendar();
+loadCalendarBookings();
+window.setInterval(() => {
+  if (!document.hidden) loadCalendarBookings();
+}, 60_000);
+document.addEventListener("visibilitychange", () => {
+  if (!document.hidden) loadCalendarBookings();
+});
 
 if (bookingDate) {
   const localToday = new Date(today.getTime() - today.getTimezoneOffset() * 60_000).toISOString().slice(0, 10);

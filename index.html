@@ -97,7 +97,7 @@
       <div class="section-wrap schedule-inner">
         <div class="section-heading schedule-heading">
           <div><p class="eyebrow">MAKE A DATE WITH THE COURT</p><h2>Find your<br><span>perfect slot.</span></h2></div>
-          <div class="schedule-side"><p>Browse court availability by month. Availability can change—send us a message and we'll save you a spot.</p><span class="availability-key"><i></i> Open play &amp; court time</span></div>
+          <div class="schedule-side"><p>See each court's hourly status for the full day, from 12 AM to midnight. Customer names and contact details stay private.</p><span class="availability-key"><i></i> Hourly court status</span></div>
         </div>
         <div class="schedule-card">
           <div class="schedule-top">
@@ -109,23 +109,25 @@
             </div>
           </div>
           <div class="schedule-scroll" role="region" aria-label="Court availability calendar">
-            <div class="schedule-grid" id="schedule-grid" role="grid" aria-label="Court availability by date and time"></div>
+            <div class="schedule-grid" id="schedule-grid" role="grid" aria-label="Court availability calendar by date"></div>
           </div>
+          <p class="calendar-message" id="calendar-message" role="status" aria-live="polite">Loading confirmed bookings…</p>
           <dialog class="availability-dialog" id="availability-dialog" aria-labelledby="availability-dialog-title">
             <div class="availability-dialog-header">
               <h4 id="availability-dialog-title"></h4>
               <button class="availability-dialog-close" id="availability-dialog-close" type="button" aria-label="Close availability details">×</button>
             </div>
-            <ul class="availability-detail-slots" id="availability-detail-slots"></ul>
+            <div class="availability-detail-slots" id="availability-detail-slots" role="table" aria-label="Hourly court status"></div>
           </dialog>
-          <div class="schedule-bottom"><span>Schedule is a sample and may change. Message us to confirm your preferred date and time.</span><a class="button button-dark button-small" href="#book">Request a time <span aria-hidden="true">↗</span></a></div>
+          <div class="schedule-bottom"><span>Only staff-confirmed bookings appear here. A booking request is not confirmed until our team replies.</span><a class="button button-dark button-small" href="#book">Request a time <span aria-hidden="true">↗</span></a></div>
         </div>
         <div class="schedule-guide" aria-label="Schedule status explanations">
           <h3>Availability guide</h3>
           <ul>
-            <li><span class="slot slot-open">OPEN</span><p><strong>Available to book.</strong></p></li>
-            <li><span class="slot slot-clinic">OPEN PLAY</span><p>Join other players for a scheduled group session.</p></li>
-            <li><span class="slot slot-maintenance">MAINTENANCE</span><p>Court temporarily unavailable due to cleaning or repairs.</p></li>
+            <li><span class="slot slot-booked">BOOKED</span><p>Confirmed court reservation.</p></li>
+            <li><span class="slot slot-open">OPEN</span><p>No active booking or scheduled activity for this hour.</p></li>
+            <li><span class="slot slot-clinic">OPEN PLAY</span><p>Sample schedule: Wed/Sat 7–10 AM; Thu/Sun 4–10 PM.</p></li>
+            <li><span class="slot slot-maintenance">MAINTENANCE</span><p>Sample schedule: Tuesday, 10 AM–4 PM.</p></li>
           </ul>
         </div>
       </div>

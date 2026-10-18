@@ -119,6 +119,15 @@
 
   window.PickleRallyDB = {
     isConfigured: () => Boolean(projectUrl && anonKey),
+    listPublicBookings: async (startDate, endDate) => {
+      const bookings = await request(
+        `/rest/v1/bookings?select=date,time,court&status=eq.confirmed&date=gte.${encodeURIComponent(startDate)}&date=lt.${encodeURIComponent(endDate)}&order=date.asc,time.asc`,
+      );
+      if (!Array.isArray(bookings)) {
+        throw new Error("The calendar returned an invalid booking list.");
+      }
+      return bookings;
+    },
     createBooking: (booking) => request("/rest/v1/bookings", {
       method: "POST",
       body: booking,
