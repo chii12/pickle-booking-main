@@ -97,7 +97,7 @@
       <div class="section-wrap schedule-inner">
         <div class="section-heading schedule-heading">
           <div><p class="eyebrow">MAKE A DATE WITH THE COURT</p><h2>Find your<br><span>perfect slot.</span></h2></div>
-          <div class="schedule-side"><p>Browse court availability by month. Availability can change—send us a message and we'll save you a spot.</p><span class="availability-key"><i></i> Open play &amp; court time</span></div>
+          <div class="schedule-side"><p>See each court's hourly status for the full day, from 12 AM to midnight. Customer names and contact details stay private.</p><span class="availability-key"><i></i> Hourly court status</span></div>
         </div>
         <div class="schedule-card">
           <div class="schedule-top">
@@ -109,23 +109,25 @@
             </div>
           </div>
           <div class="schedule-scroll" role="region" aria-label="Court availability calendar">
-            <div class="schedule-grid" id="schedule-grid" role="grid" aria-label="Court availability by date and time"></div>
+            <div class="schedule-grid" id="schedule-grid" role="grid" aria-label="Court availability calendar by date"></div>
           </div>
+          <p class="calendar-message" id="calendar-message" role="status" aria-live="polite">Loading confirmed bookings…</p>
           <dialog class="availability-dialog" id="availability-dialog" aria-labelledby="availability-dialog-title">
             <div class="availability-dialog-header">
               <h4 id="availability-dialog-title"></h4>
               <button class="availability-dialog-close" id="availability-dialog-close" type="button" aria-label="Close availability details">×</button>
             </div>
-            <ul class="availability-detail-slots" id="availability-detail-slots"></ul>
+            <div class="availability-detail-slots" id="availability-detail-slots" role="table" aria-label="Hourly court status"></div>
           </dialog>
-          <div class="schedule-bottom"><span>Schedule is a sample and may change. Message us to confirm your preferred date and time.</span><a class="button button-dark button-small" href="#book">Request a time <span aria-hidden="true">↗</span></a></div>
+          <div class="schedule-bottom"><span>Only staff-confirmed bookings appear here. A booking request is not confirmed until our team replies.</span><a class="button button-dark button-small" href="#book">Request a time <span aria-hidden="true">↗</span></a></div>
         </div>
         <div class="schedule-guide" aria-label="Schedule status explanations">
           <h3>Availability guide</h3>
           <ul>
-            <li><span class="slot slot-open">OPEN</span><p><strong>Available to book.</strong></p></li>
-            <li><span class="slot slot-clinic">OPEN PLAY</span><p>Join other players for a scheduled group session.</p></li>
-            <li><span class="slot slot-maintenance">MAINTENANCE</span><p>Court temporarily unavailable due to cleaning or repairs.</p></li>
+            <li><span class="slot slot-booked">BOOKED</span><p>Confirmed court reservation.</p></li>
+            <li><span class="slot slot-open">OPEN</span><p>No active booking or scheduled activity for this hour.</p></li>
+            <li><span class="slot slot-clinic">OPEN PLAY</span><p>Sample schedule: Wed/Sat 7–10 AM; Thu/Sun 4–10 PM.</p></li>
+            <li><span class="slot slot-maintenance">MAINTENANCE</span><p>Sample schedule: Tuesday, 10 AM–4 PM.</p></li>
           </ul>
         </div>
       </div>
@@ -145,8 +147,9 @@
         <p>We'll help you lock in the good stuff.</p>
         <div class="form-row">
           <label>Your name<input name="name" autocomplete="name" placeholder="e.g. Buldak Bolong" required></label>
-          <label>Mobile number<input name="phone" type="tel" autocomplete="tel" placeholder="09XX XXX XXXX" required></label>
+          <label>Mobile number<input name="phone" type="tel" maxlength="40" autocomplete="tel" placeholder="09XX XXX XXXX" required></label>
         </div>
+        <label>Email address<input name="email" type="email" maxlength="254" autocomplete="email" placeholder="you@example.com" required></label>
         <div class="form-row">
           <label>Choose a court<select name="court" id="booking-court" required><option value="">Select a court</option><option value="The Ace Court — ₱400/hour" data-rate="400">The Ace Court — ₱400/hour</option><option value="The Prime Court — ₱500/hour" data-rate="500">The Prime Court — ₱500/hour</option><option value="The Rally Court — ₱400/hour" data-rate="400">The Rally Court — ₱400/hour</option><option value="The Social Court — ₱450/hour" data-rate="450">The Social Court — ₱450/hour</option></select></label>
           <label>Players<select name="players" required><option value="">How many?</option><option>2 players</option><option>3 players</option><option>4 players</option></select></label>
@@ -162,8 +165,24 @@
         <label>Promo code <span class="optional-label">OPTIONAL</span><input name="promo" id="promo-code" placeholder="Enter a promo code"><span class="promo-feedback" id="promo-feedback" aria-live="polite"></span></label>
         <label>Anything we should know? <span class="optional-label">OPTIONAL</span><textarea name="notes" rows="2" placeholder="First time playing? Need paddles? Let us know."></textarea></label>
         <button class="button button-lime form-submit" type="submit">Send booking inquiry <span aria-hidden="true">↗</span></button>
-        <p class="form-terms">Your request will be saved and sent to our team. Final rates and availability will be confirmed by our team.</p>
+        <p class="form-terms">Your inquiry will be sent to our team. Please wait for an email or text message with the details. Your booking is not confirmed until our team replies.</p>
         <p class="form-message" id="form-message" role="status" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="cancellation-section section-wrap" id="cancel-booking">
+      <div class="cancellation-copy">
+        <p class="eyebrow">NEED TO CHANGE YOUR PLANS?</p>
+        <h2>Cancel a<br><span>booking.</span></h2>
+        <p>Cancel within 48 hours of submitting your booking request. After that window, cancellations through this page are no longer available.</p>
+        <p>Use the booking reference and phone number from your request, or open the secure cancellation link sent to your email.</p>
+        <p>Staff call/text cancellation will be added once the club contact number is available.</p>
+      </div>
+      <form class="cancellation-form" id="cancellation-form">
+        <label>Booking reference<input id="cancellation-reference" name="reference" maxlength="36" placeholder="Reference from your booking confirmation" autocomplete="off" required></label>
+        <label>Phone number used for the booking<input id="cancellation-phone" name="phone" type="tel" maxlength="40" autocomplete="tel" required></label>
+        <button class="button button-dark" type="submit">Cancel booking</button>
+        <p class="cancellation-message" id="cancellation-message" role="status" aria-live="polite"></p>
       </form>
     </section>
 
@@ -229,7 +248,7 @@
       <div class="section-wrap visit-inner">
         <div class="visit-copy"><p class="eyebrow">SAVE US A SPOT IN YOUR WEEK</p><h2>See you<br><span>on court.</span></h2><p>Bring your crew, or come as you are. We'll take it from there.</p><a class="button button-lime" href="#book">Plan your first game <span aria-hidden="true">↗</span></a></div>
         <div class="visit-details">
-          <div class="visit-detail"><span>COME FIND US</span><strong>Valenzuela City · Your Court. Your Time. Your Rally.</strong><div class="visit-actions"><a href="https://maps.google.com/?q=pickleball+courts+Quezon+City" target="_blank" rel="noreferrer">Find our courts ↗</a><!--<button class="qr-trigger" id="qr-trigger" type="button">Print website QR ↗</button>--></div></div>
+          <div class="visit-detail"><span>COME FIND US</span><strong>SM City Valenzuela</strong><div class="visit-actions"><a href="https://www.google.com/maps/search/?api=1&amp;query=SM%20City%20Valenzuela" target="_blank" rel="noreferrer">Get directions ↗</a><!--<button class="qr-trigger" id="qr-trigger" type="button">Print website QR ↗</button>--></div><iframe class="location-map" title="Interactive map to SM City Valenzuela" src="https://maps.google.com/maps?q=SM%20City%20Valenzuela&amp;output=embed" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe></div>
           <div class="visit-detail"><span>OPEN EVERY DAY</span><strong>7:00 AM — 10:00 PM</strong><p>Holiday hours may vary. Message us before your visit.</p></div>
           <div class="visit-detail"><span>NEED A HAND?</span><strong>Let's talk pickleball.</strong><div class="contact-links"><a href="https://wa.me/?text=Hi%20PickleCourt!%20I%20have%20a%20question%20about%20playing." target="_blank" rel="noreferrer">WhatsApp ↗</a><a href="https://m.me/" target="_blank" rel="noreferrer">Messenger ↗</a><a href="https://m.me/" target="_blank" rel="noreferrer">Facebook ↗</a></div></div>
           <div class="holiday-notice"><span>✳</span><p><strong>Holiday heads-up</strong><br>Hours may change on public holidays. Check with us on WhatsApp or Messenger before heading over.</p></div>
@@ -240,7 +259,7 @@
 
   <footer class="site-footer">
     <a class="brand footer-brand" href="#home"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M13 5a9 9 0 0 1 9 9v8a9 9 0 1 1-18 0v-8a9 9 0 0 1 9-9Z"/><path d="m16 29 7 7M27 8h1m5 5h1m-7 5h1m6 4h1m-7 5h1"/></svg></span><span>pickle<span class="brand-light">court</span></span></a>
-    <p>GOOD GAMES START HERE.</p><div><a href="#rules">Court etiquette</a><a href="#visit">Visit us</a><span>© <span id="year"></span> PickleCourt</span></div>
+    <p>GOOD GAMES START HERE.</p><div><a href="#rules">Court etiquette</a><a href="#cancel-booking">Cancel a booking</a><a href="#visit">Visit us</a><span>© <span id="year"></span> PickleCourt</span></div>
   </footer>
 
   <button class="back-to-top" id="back-to-top" type="button" aria-label="Back to top" title="Back to top" disabled>

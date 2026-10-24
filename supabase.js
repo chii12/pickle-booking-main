@@ -119,11 +119,85 @@
 
   window.PickleRallyDB = {
     isConfigured: () => Boolean(projectUrl && anonKey),
-    createBooking: (booking) => request("/rest/v1/bookings", {
-      method: "POST",
-      body: booking,
-      headers: { Prefer: "return=minimal" },
-    }),
+    listPublicBookings: async (startDate, endDate) => {
+      const bookings = await request(
+        "/rest/v1/rpc/list_public_bookings",
+        {
+          method: "POST",
+          body: { p_start_date: startDate, p_end_date: endDate },
+        },
+      );
+      if (!Array.isArray(bookings)) {
+        throw new Error("The calendar returned an invalid booking list.");
+      }
+      return bookings;
+    },
+    listUnavailableBookingTimes: async (date, court) => {
+      const bookings = await request("/rest/v1/rpc/list_unavailable_booking_times", {
+        method: "POST",
+        body: { p_booking_date: date, p_court: court },
+      });
+      if (!Array.isArray(bookings) || bookings.some((booking) => typeof booking.time !== "string")) {
+        throw new Error("The booking availability check returned an invalid response.");
+      }
+      return bookings.map((booking) => booking.time);
+    },
+    createBooking: async (booking) => {
+      const result = await request("/rest/v1/rpc/create_customer_booking", {
+        method: "POST",
+        body: {
+          p_name: booking.name,
+          p_phone: booking.phone,
+          p_email: booking.email,
+          p_court: booking.court,
+          p_players: booking.players,
+          p_duration: booking.duration,
+          p_date: booking.date,
+          p_time: booking.time,
+          p_estimated_total: booking.estimated_total,
+          p_promo: booking.promo,
+          p_notes: booking.notes,
+        },
+      });
+      if (!result || typeof result.booking_id !== "string" || typeof result.cancellation_token !== "string") {
+        throw new Error("The booking response did not include valid cancellation details. Please contact the club before submitting another request.");
+      }
+      return result;
+    },
+    sendCancellationEmail: async (bookingId, cancellationToken) => {
+      const result = await request("/functions/v1/send-cancellation-email", {
+        method: "POST",
+        body: { booking_id: bookingId, cancellation_token: cancellationToken },
+      });
+      if (!result?.success) {
+        throw new Error("The cancellation email could not be sent.");
+      }
+    },
+    cancelBooking: async (bookingId, phone, cancellationToken = null) => {
+      const result = await request("/rest/v1/rpc/cancel_customer_booking", {
+        method: "POST",
+        body: {
+          p_booking_id: bookingId,
+          p_phone: phone || null,
+          p_token: cancellationToken,
+        },
+      });
+      if (typeof result !== "boolean") {
+        throw new Error("The cancellation request returned an invalid response.");
+      }
+      return result;
+    },
+    createAdminBooking: async (booking) => {
+      const result = await authenticatedRequest("/rest/v1/bookings?select=*", {
+        method: "POST",
+        body: booking,
+        headers: { Prefer: "return=representation" },
+      });
+      if (!Array.isArray(result) || result.length !== 1) {
+        throw new Error("The booking was not created. Please refresh and try again.");
+      }
+      return result[0];
+    },
     signIn: async (email, password) => {
       const session = await request("/auth/v1/token?grant_type=password", {
         method: "POST",

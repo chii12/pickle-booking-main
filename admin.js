@@ -9,12 +9,30 @@
   const signOutButton = document.querySelector("#admin-sign-out");
   const bookingList = document.querySelector("#booking-list");
   const bookingEmpty = document.querySelector("#booking-empty");
+  const bookingDialog = document.querySelector("#admin-booking-dialog");
+  const bookingForm = document.querySelector("#admin-booking-form");
+  const bookingFormFeedback = document.querySelector("#admin-booking-feedback");
+  const bookingCourt = document.querySelector("#admin-booking-court");
+  const bookingDuration = document.querySelector("#admin-booking-duration");
+  const bookingDate = document.querySelector("#admin-booking-date");
+  const bookingTime = document.querySelector("#admin-booking-time");
+  const bookingTotal = document.querySelector("#admin-booking-total");
+  const bookingSubmit = document.querySelector("#admin-booking-submit");
   const feedback = document.querySelector("#admin-feedback");
   const searchInput = document.querySelector("#booking-search");
+  const dateFilter = document.querySelector("#booking-date-filter");
+  const courtFilter = document.querySelector("#booking-court-filter");
   const refreshButton = document.querySelector("#refresh-bookings");
   const syncStatus = document.querySelector("#admin-sync-status");
+  const pagination = document.querySelector("#booking-pagination");
+  const paginationSummary = document.querySelector("#booking-pagination-summary");
+  const previousPageButton = document.querySelector("#booking-previous-page");
+  const nextPageButton = document.querySelector("#booking-next-page");
+  const pageNumber = document.querySelector("#booking-page-number");
   const filterButtons = [...document.querySelectorAll(".admin-filter")];
+  const pageSize = 10;
   let activeFilter = "all";
+  let activePage = 1;
   let bookings = [];
   let loading = false;
   let pollingTimer;
@@ -56,6 +74,58 @@
     startPolling();
   };
 
+  const localDateValue = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  };
+
+  const formatBookingHour = (hour) => `${hour % 12 || 12}:00 ${hour < 12 ? "AM" : "PM"}`;
+
+  const updateAdminBookingTimes = () => {
+    const duration = Number(bookingDuration.value);
+    const previousTime = bookingTime.value;
+    bookingTime.replaceChildren(new Option(duration ? "Choose a time" : "Choose a duration first", ""));
+    if (!duration) {
+      bookingTime.disabled = true;
+      return;
+    }
+
+    bookingTime.disabled = false;
+    for (let startHour = 7; startHour + duration <= 22; startHour += 1) {
+      const time = `${formatBookingHour(startHour)} – ${formatBookingHour(startHour + duration)}`;
+      bookingTime.add(new Option(time, time, false, time === previousTime));
+    }
+  };
+
+  const updateAdminBookingTotal = () => {
+    const rate = Number(bookingCourt.selectedOptions[0]?.dataset.rate);
+    const duration = Number(bookingDuration.value);
+    bookingTotal.textContent = rate && duration
+      ? new Intl.NumberFormat("en-PH", { style: "currency", currency: "PHP", maximumFractionDigits: 0 })
+        .format(rate * duration)
+      : "Choose a court & duration";
+  };
+
+  const timeRange = (time) => {
+    const matches = [...String(time || "").matchAll(/(\d{1,2}):(\d{2})\s*(AM|PM)/gi)];
+    if (matches.length < 2) return null;
+    const toMinutes = (match) => {
+      const hour = Number(match[1]) % 12 + (match[3].toUpperCase() === "PM" ? 12 : 0);
+      return hour * 60 + Number(match[2]);
+    };
+    return [toMinutes(matches[0]), toMinutes(matches[1])];
+  };
+
+  const hasBookingConflict = (newBooking, existingBookings) => {
+    const newRange = timeRange(newBooking.time);
+    if (!newRange) throw new Error("Could not read the selected time. Please choose a time slot again.");
+    return existingBookings.some((booking) => {
+      if (booking.status === "cancelled" || booking.date !== newBooking.date || booking.court !== newBooking.court) return false;
+      const existingRange = timeRange(booking.time);
+      return existingRange && newRange[0] < existingRange[1] && existingRange[0] < newRange[1];
+    });
+  };
+
   const createCell = (className, text) => {
     const cell = document.createElement("td");
     if (className) cell.className = className;
@@ -73,6 +143,12 @@
     phone.className = "booking-phone";
     phone.textContent = booking.phone || "No phone provided";
     playerCell.append(playerName, phone);
+    if (booking.email) {
+      const email = document.createElement("span");
+      email.className = "booking-phone";
+      email.textContent = booking.email;
+      playerCell.append(email);
+    }
     if (booking.notes || booking.promo) {
       const extra = document.createElement("span");
       extra.className = "booking-extra";
@@ -115,12 +191,13 @@
       statusSelect.append(option);
     });
     statusSelect.addEventListener("change", async () => {
+      const nextStatus = statusSelect.value;
       statusSelect.disabled = true;
       setFeedback("Saving booking status…");
       try {
-        await database.updateBookingStatus(booking.id, statusSelect.value);
-        setFeedback(`Booking for ${booking.name || "player"} marked ${statusSelect.value}.`);
+        await database.updateBookingStatus(booking.id, nextStatus);
         await loadBookings();
+        setFeedback(`Booking for ${booking.name || "player"} marked ${nextStatus}.`);
       } catch (error) {
         setFeedback(error.message);
         if (error.message.includes("session has expired")) showLogin(error.message);
@@ -171,18 +248,38 @@
     document.querySelector("#count-cancelled").textContent = String(cancelled);
 
     const query = searchInput.value.trim().toLocaleLowerCase();
+    const selectedDate = dateFilter.value;
+    const courts = [...new Set(bookings.map((booking) => booking.court).filter(Boolean))]
+      .sort((first, second) => first.localeCompare(second));
+    const previousCourt = courtFilter.value;
+    courtFilter.replaceChildren(new Option("All courts", ""));
+    courts.forEach((court) => courtFilter.add(new Option(court, court)));
+    courtFilter.value = courts.includes(previousCourt) ? previousCourt : "";
+    const selectedCourt = courtFilter.value;
+
     const filtered = bookings
       .filter((booking) => activeFilter === "all" || booking.status === activeFilter)
-      .filter((booking) => !query || [booking.name, booking.phone, booking.court, booking.date, booking.time]
+      .filter((booking) => !selectedDate || booking.date === selectedDate)
+      .filter((booking) => !selectedCourt || booking.court === selectedCourt)
+      .filter((booking) => !query || [booking.name, booking.phone, booking.email, booking.court, booking.date, booking.time]
         .some((value) => String(value || "").toLocaleLowerCase().includes(query)));
-    bookingList.replaceChildren(...filtered.map(renderBooking));
+    const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    activePage = Math.min(activePage, totalPages);
+    const firstIndex = (activePage - 1) * pageSize;
+    const pageBookings = filtered.slice(firstIndex, firstIndex + pageSize);
+    bookingList.replaceChildren(...pageBookings.map(renderBooking));
     bookingEmpty.hidden = filtered.length !== 0;
+    pagination.hidden = filtered.length === 0;
+    paginationSummary.textContent = `Showing ${firstIndex + 1}–${Math.min(firstIndex + pageSize, filtered.length)} of ${filtered.length} requests`;
+    pageNumber.textContent = `Page ${activePage} of ${totalPages}`;
+    previousPageButton.disabled = activePage === 1;
+    nextPageButton.disabled = activePage === totalPages;
     document.querySelector("#booking-empty-title").textContent = bookings.length
       ? "No matching bookings."
       : "No booking requests yet.";
     document.querySelector("#booking-empty-message").textContent = bookings.length
-      ? "Try another search or choose a different status filter."
-      : "Booking requests submitted on the website will appear here.";
+      ? "Try another search or adjust the date, court, or status filters."
+      : "Booking requests submitted on the website will appear here, or create one from the staff dashboard.";
   };
 
   async function loadBookings({ silent = false } = {}) {
@@ -260,9 +357,80 @@
       .catch((error) => showLogin(error.message));
   }
 
+  bookingDate.min = localDateValue();
+  bookingDuration.addEventListener("change", updateAdminBookingTimes);
+  bookingDuration.addEventListener("change", updateAdminBookingTotal);
+  bookingCourt.addEventListener("change", updateAdminBookingTotal);
+  document.querySelector("#open-admin-booking").addEventListener("click", () => {
+    bookingFormFeedback.textContent = "";
+    bookingDialog.showModal();
+    bookingForm.querySelector("input[name='name']").focus();
+  });
+  document.querySelector("#admin-booking-close").addEventListener("click", () => bookingDialog.close());
+  bookingDialog.addEventListener("click", (event) => {
+    if (event.target === bookingDialog) bookingDialog.close();
+  });
+  bookingForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!bookingForm.reportValidity()) return;
+
+    const formData = Object.fromEntries(new FormData(bookingForm));
+    const rate = Number(bookingCourt.selectedOptions[0]?.dataset.rate);
+    const booking = {
+      name: String(formData.name).trim(),
+      phone: String(formData.phone).trim(),
+      court: String(formData.court),
+      players: String(formData.players),
+      duration: Number(formData.duration),
+      date: String(formData.date),
+      time: String(formData.time),
+      estimated_total: rate * Number(formData.duration),
+      promo: "",
+      notes: String(formData.notes || "").trim(),
+      status: String(formData.status),
+    };
+
+    if (!booking.name || !booking.phone || !rate || booking.date < localDateValue()) {
+      bookingFormFeedback.textContent = "Check the player details, court, and booking date.";
+      return;
+    }
+
+    bookingSubmit.disabled = true;
+    bookingFormFeedback.textContent = "Checking court availability…";
+    try {
+      const latestBookings = await database.listBookings();
+      bookings = latestBookings;
+      if (hasBookingConflict(booking, latestBookings)) {
+        renderBookings();
+        bookingFormFeedback.textContent = "That court already has a booking during this time. Choose another time slot.";
+        return;
+      }
+
+      const createdBooking = await database.createAdminBooking(booking);
+      bookings = [createdBooking, ...latestBookings];
+      activePage = 1;
+      renderBookings();
+      setFeedback(`Booking for ${booking.name} created as ${booking.status}.`);
+      bookingForm.reset();
+      bookingDate.min = localDateValue();
+      updateAdminBookingTimes();
+      updateAdminBookingTotal();
+      bookingDialog.close();
+    } catch (error) {
+      bookingFormFeedback.textContent = error.message;
+      if (error.message.includes("session has expired")) {
+        bookingDialog.close();
+        showLogin(error.message);
+      }
+    } finally {
+      bookingSubmit.disabled = false;
+    }
+  });
+
   filterButtons.forEach((button) => {
     button.addEventListener("click", () => {
       activeFilter = button.dataset.filter;
+      activePage = 1;
       filterButtons.forEach((filterButton) => {
         const isActive = filterButton === button;
         filterButton.classList.toggle("is-active", isActive);
@@ -272,7 +440,23 @@
     });
   });
 
-  searchInput.addEventListener("input", renderBookings);
+  const resetPageAndRender = () => {
+    activePage = 1;
+    renderBookings();
+  };
+
+  searchInput.addEventListener("input", resetPageAndRender);
+  dateFilter.addEventListener("change", resetPageAndRender);
+  courtFilter.addEventListener("change", resetPageAndRender);
+  previousPageButton.addEventListener("click", () => {
+    if (activePage === 1) return;
+    activePage -= 1;
+    renderBookings();
+  });
+  nextPageButton.addEventListener("click", () => {
+    activePage += 1;
+    renderBookings();
+  });
   refreshButton.addEventListener("click", loadBookings);
   document.addEventListener("visibilitychange", () => {
     if (!document.hidden && !login.hidden) loadBookings({ silent: true });
